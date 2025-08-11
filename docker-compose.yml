@@ -99,10 +99,10 @@ services:
       - -c
       - |
         # Create necessary directories
-        mkdir -p /etc/nginx/ssl /etc/nginx/sites-enabled /etc/nginx/sites-available /var/log/nginx /tmp
+        mkdir -p /etc/nginx/ssl /etc/nginx/sites-enabled /etc/nginx/sites-available /var/log/nginx /opt/zammad/tmp
         
-        # Ensure zammad user can write to log directory
-        chown -R zammad:zammad /var/log/nginx /tmp
+        # Ensure zammad user can write to log directory and our temp directory
+        chown -R zammad:zammad /var/log/nginx /opt/zammad/tmp
         
         # Generate self-signed certificate inside container
         echo "Generating SSL certificate..."
@@ -118,7 +118,7 @@ services:
         # Create main nginx configuration
         cat > /etc/nginx/nginx.conf << 'EOF'
         worker_processes auto;
-        pid /tmp/nginx.pid;
+        pid /opt/zammad/tmp/nginx.pid;
 
         events {
             worker_connections 1024;
