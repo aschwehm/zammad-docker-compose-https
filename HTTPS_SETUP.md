@@ -28,12 +28,18 @@ This configuration runs Zammad with HTTPS enabled using self-signed certificates
 
 ## Technical Details
 
-The configuration uses an inline command to create the SSL directory and start the nginx service:
+The configuration uses an inline command to create the necessary directories and copy the configuration file:
 ```bash
-sh -c "mkdir -p /etc/nginx/ssl && exec /docker-entrypoint.sh zammad-nginx"
+sh -c "mkdir -p /etc/nginx/ssl /etc/nginx/sites-enabled && cp /tmp/zammad_ssl.conf /etc/nginx/sites-enabled/zammad.conf && exec /docker-entrypoint.sh zammad-nginx"
 ```
 
-This ensures the SSL directory exists before mounting the certificates.
+This approach:
+1. Creates the SSL directory for certificates
+2. Creates the sites-enabled directory for nginx configuration
+3. Copies our SSL configuration from `/tmp` to the proper location
+4. Starts the original Zammad nginx service
+
+The configuration file is mounted to `/tmp/zammad_ssl.conf` to avoid Docker volume mounting issues with non-existent directories.
 
 ## Usage
 
