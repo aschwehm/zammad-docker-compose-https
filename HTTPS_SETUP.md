@@ -20,26 +20,29 @@ This configuration runs Zammad with HTTPS enabled using self-signed certificates
 
 ## Files Added/Modified
 
-- `docker-compose.yml` - Updated zammad-nginx service configuration
+- `docker-compose.yml` - Updated zammad-nginx service configuration with embedded SSL config
 - `certs/zammad.crt` - Self-signed SSL certificate
 - `certs/zammad.key` - SSL private key
-- `zammad_ssl.conf` - Nginx SSL configuration
 - `.env` - Environment variables
+- `zammad_ssl.conf` - Reference SSL configuration (not mounted, embedded in docker-compose)
 
 ## Technical Details
 
-The configuration uses an inline command to create the necessary directories and copy the configuration file:
+To avoid Windows-to-Linux volume mounting issues, the nginx SSL configuration is embedded directly in the docker-compose.yml file using a heredoc approach:
+
 ```bash
-sh -c "mkdir -p /etc/nginx/ssl /etc/nginx/sites-enabled && cp /tmp/zammad_ssl.conf /etc/nginx/sites-enabled/zammad.conf && exec /docker-entrypoint.sh zammad-nginx"
+cat > /etc/nginx/sites-enabled/zammad.conf << 'EOF'
+[nginx configuration content]
+EOF
 ```
 
 This approach:
 1. Creates the SSL directory for certificates
-2. Creates the sites-enabled directory for nginx configuration
-3. Copies our SSL configuration from `/tmp` to the proper location
+2. Creates the sites-enabled directory for nginx configuration  
+3. Writes the SSL configuration directly to the container filesystem
 4. Starts the original Zammad nginx service
 
-The configuration file is mounted to `/tmp/zammad_ssl.conf` to avoid Docker volume mounting issues with non-existent directories.
+The SSL certificates are still mounted as files from the Windows host, which works reliably for binary files.
 
 ## Usage
 

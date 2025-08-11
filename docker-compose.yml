@@ -95,7 +95,88 @@ services:
 
   zammad-nginx:
     <<: *zammad-service
-    command: ["sh", "-c", "mkdir -p /etc/nginx/ssl /etc/nginx/sites-enabled && cat > /etc/nginx/sites-enabled/zammad.conf << 'EOF'\nupstream zammad-railsserver {\n    server zammad-railsserver:3000;\n}\n\nupstream zammad-websocket {\n    server zammad-websocket:6042;\n}\n\nserver {\n    listen 80;\n    listen [::]:80;\n    server_name _;\n\n    access_log /var/log/nginx/zammad.access.log;\n    error_log  /var/log/nginx/zammad.error.log;\n\n    return 301 https://$$host$$request_uri;\n}\n\nserver {\n    listen 443 ssl http2;\n    listen [::]:443 ssl http2;\n    server_name _;\n\n    ssl_certificate     /etc/nginx/ssl/zammad.crt;\n    ssl_certificate_key /etc/nginx/ssl/zammad.key;\n\n    ssl_protocols TLSv1.2 TLSv1.3;\n    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384;\n    ssl_prefer_server_ciphers on;\n\n    location = /robots.txt  {\n        access_log off; log_not_found off;\n    }\n\n    location = /favicon.ico {\n        access_log off; log_not_found off;\n    }\n\n    root /opt/zammad/public;\n\n    access_log /var/log/nginx/zammad.access.log;\n    error_log  /var/log/nginx/zammad.error.log;\n\n    client_max_body_size 50M;\n\n    location ~ ^/(assets/|robots.txt|humans.txt|favicon.ico|apple-touch-icon.png) {\n        expires max;\n    }\n\n    location /ws {\n        proxy_http_version 1.1;\n        proxy_set_header Upgrade $$http_upgrade;\n        proxy_set_header Connection \"Upgrade\";\n        proxy_set_header CLIENT_IP $$remote_addr;\n        proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $$scheme;\n        proxy_read_timeout 86400;\n        proxy_pass http://zammad-websocket;\n    }\n\n    location / {\n        proxy_set_header Host $$http_host;\n        proxy_set_header CLIENT_IP $$remote_addr;\n        proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto https;\n        proxy_read_timeout 300;\n        proxy_pass http://zammad-railsserver;\n\n        gzip on;\n        gzip_types text/plain text/xml text/css image/svg+xml application/javascript application/x-javascript application/json application/xml;\n        gzip_proxied any;\n    }\n}\nEOF\n&& exec /docker-entrypoint.sh zammad-nginx"]
+    command: 
+      - sh
+      - -c
+      - |
+        mkdir -p /etc/nginx/ssl /etc/nginx/sites-enabled
+        cat > /etc/nginx/sites-enabled/zammad.conf << 'EOF'
+        upstream zammad-railsserver {
+            server zammad-railsserver:3000;
+        }
+
+        upstream zammad-websocket {
+            server zammad-websocket:6042;
+        }
+
+        server {
+            listen 80;
+            listen [::]:80;
+            server_name _;
+
+            access_log /var/log/nginx/zammad.access.log;
+            error_log  /var/log/nginx/zammad.error.log;
+
+            return 301 https://$$host$$request_uri;
+        }
+
+        server {
+            listen 443 ssl http2;
+            listen [::]:443 ssl http2;
+            server_name _;
+
+            ssl_certificate     /etc/nginx/ssl/zammad.crt;
+            ssl_certificate_key /etc/nginx/ssl/zammad.key;
+
+            ssl_protocols TLSv1.2 TLSv1.3;
+            ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384;
+            ssl_prefer_server_ciphers on;
+
+            location = /robots.txt  {
+                access_log off; log_not_found off;
+            }
+
+            location = /favicon.ico {
+                access_log off; log_not_found off;
+            }
+
+            root /opt/zammad/public;
+
+            access_log /var/log/nginx/zammad.access.log;
+            error_log  /var/log/nginx/zammad.error.log;
+
+            client_max_body_size 50M;
+
+            location ~ ^/(assets/|robots.txt|humans.txt|favicon.ico|apple-touch-icon.png) {
+                expires max;
+            }
+
+            location /ws {
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $$http_upgrade;
+                proxy_set_header Connection "Upgrade";
+                proxy_set_header CLIENT_IP $$remote_addr;
+                proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $$scheme;
+                proxy_read_timeout 86400;
+                proxy_pass http://zammad-websocket;
+            }
+
+            location / {
+                proxy_set_header Host $$http_host;
+                proxy_set_header CLIENT_IP $$remote_addr;
+                proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto https;
+                proxy_read_timeout 300;
+                proxy_pass http://zammad-railsserver;
+
+                gzip on;
+                gzip_types text/plain text/xml text/css image/svg+xml application/javascript application/x-javascript application/json application/xml;
+                gzip_proxied any;
+            }
+        }
+        EOF
+        exec /docker-entrypoint.sh zammad-nginx
     expose:
       - "443"
       - "80"
