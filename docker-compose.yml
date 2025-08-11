@@ -97,9 +97,23 @@ services:
     <<: *zammad-service
     command: ["zammad-nginx"]
     expose:
-      - "${NGINX_PORT:-8080}"
+      - "443"
+      - "80"
     ports:
-      - "${NGINX_EXPOSE_PORT:-8080}:${NGINX_PORT:-8080}"
+      - "12349:443"  # HTTPS on port 12349 (self-signed)
+      - "12399:80"   # HTTP on port 12399 (optional, for redirect)
+    environment:
+      <<: *zammad-environment
+      NGINX_PORT: 443
+      NGINX_SERVER_SCHEME: https
+      NGINX_SERVER_NAME: "_"
+    volumes:
+      - ./certs/zammad.crt:/etc/nginx/ssl/zammad.crt:ro
+      - ./certs/zammad.key:/etc/nginx/ssl/zammad.key:ro
+      - ./zammad_ssl.conf:/etc/nginx/sites-enabled/zammad.conf:ro
+      - ./nginx-ssl-entrypoint.sh:/nginx-ssl-entrypoint.sh:ro
+      - zammad-storage:/opt/zammad/storage
+    entrypoint: ["/bin/bash", "/nginx-ssl-entrypoint.sh"]
     depends_on:
       - zammad-railsserver
 
