@@ -99,15 +99,27 @@ services:
       - sh
       - -c
       - |
+        # First, run the original entrypoint to let it set up everything
+        /docker-entrypoint.sh zammad-nginx &
+        NGINX_PID=$!
+        
+        # Wait a moment for the entrypoint to finish setup
+        sleep 5
+        
+        # Kill the nginx process so we can reconfigure
+        kill $NGINX_PID 2>/dev/null || true
+        wait $NGINX_PID 2>/dev/null || true
+        
+        # Now do our SSL setup
         mkdir -p /etc/nginx/ssl /etc/nginx/sites-enabled /etc/nginx/sites-available
         
         # Generate self-signed certificate inside container
         openssl req -newkey rsa:4096 -nodes -x509 -days 1825 -subj "/CN=zammad.local" \
           -keyout /etc/nginx/ssl/zammad.key -out /etc/nginx/ssl/zammad.crt
         
-        # Remove any existing configurations that might conflict
+        # Remove any configurations that might conflict (including ones created by entrypoint)
         rm -f /etc/nginx/sites-enabled/*
-        rm -f /etc/nginx/sites-available/*
+        rm -f /etc/nginx/sites-available/default*
         
         cat > /etc/nginx/sites-available/zammad.conf << 'EOF'
         server {
@@ -181,7 +193,8 @@ services:
         # Enable our configuration
         ln -s /etc/nginx/sites-available/zammad.conf /etc/nginx/sites-enabled/zammad.conf
         
-        exec /docker-entrypoint.sh zammad-nginx
+        # Start nginx with our configuration
+        exec nginx -g "daemon off;"
     expose:
       - "443"
       - "80"
