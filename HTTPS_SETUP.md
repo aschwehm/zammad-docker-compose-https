@@ -37,19 +37,19 @@ command:
   - |
     mkdir -p /etc/nginx/ssl /etc/nginx/sites-enabled
     cat > /etc/nginx/sites-enabled/zammad.conf << 'EOF'
-    [nginx configuration content]
+    [nginx server blocks for HTTP redirect and HTTPS]
     EOF
     exec /docker-entrypoint.sh zammad-nginx
 ```
 
-This approach:
-1. Uses proper YAML multi-line syntax to avoid shell parsing issues
-2. Creates the necessary directories for SSL certificates and nginx configuration  
-3. Writes the SSL configuration directly to the container filesystem using a heredoc
-4. Starts the original Zammad nginx service
-5. Avoids all Windows-to-Linux file mounting issues for text files
+**Key design decisions:**
+1. **No upstream definitions**: Removed duplicate upstream blocks as Zammad's nginx container already defines them
+2. **Server blocks only**: Only defines HTTP (redirect) and HTTPS server blocks
+3. **Uses existing upstreams**: References the pre-existing `zammad-railsserver` and `zammad-websocket` upstreams
+4. **YAML multi-line syntax**: Avoids shell parsing issues and maintains readability
+5. **Binary file mounting**: SSL certificates mount reliably from Windows to Linux
 
-The SSL certificates are still mounted as files from the Windows host, which works reliably for binary files.
+This approach eliminates duplicate upstream errors while providing full SSL functionality.
 
 ## Usage
 

@@ -100,6 +100,11 @@ services:
       - -c
       - |
         mkdir -p /etc/nginx/ssl /etc/nginx/sites-enabled
+        
+        # Generate self-signed certificate inside container
+        openssl req -newkey rsa:4096 -nodes -x509 -days 1825 -subj "/CN=zammad.local" \
+          -keyout /etc/nginx/ssl/zammad.key -out /etc/nginx/ssl/zammad.crt
+        
         cat > /etc/nginx/sites-enabled/zammad.conf << 'EOF'
         server {
             listen 80;
@@ -181,8 +186,6 @@ services:
       NGINX_SERVER_SCHEME: https
       NGINX_SERVER_NAME: "_"
     volumes:
-      - ./certs/zammad.crt:/etc/nginx/ssl/zammad.crt:ro
-      - ./certs/zammad.key:/etc/nginx/ssl/zammad.key:ro
       - zammad-storage:/opt/zammad/storage
     depends_on:
       - zammad-railsserver
