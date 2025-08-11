@@ -102,8 +102,15 @@ services:
         mkdir -p /etc/nginx/ssl /etc/nginx/sites-enabled /etc/nginx/sites-available /var/log/nginx
         
         # Generate self-signed certificate inside container
+        echo "Generating SSL certificate..."
         openssl req -newkey rsa:4096 -nodes -x509 -days 1825 -subj "/CN=zammad.local" \
           -keyout /etc/nginx/ssl/zammad.key -out /etc/nginx/ssl/zammad.crt
+        
+        # Verify certificate was created
+        echo "SSL certificate files:"
+        ls -la /etc/nginx/ssl/
+        echo "Certificate details:"
+        openssl x509 -in /etc/nginx/ssl/zammad.crt -text -noout | head -20
         
         # Create main nginx configuration
         cat > /etc/nginx/nginx.conf << 'EOF'
@@ -159,7 +166,7 @@ services:
             access_log /var/log/nginx/zammad.access.log main;
             error_log  /var/log/nginx/zammad.error.log;
 
-            return 301 https://$$host$$request_uri;
+            return 301 https://$$host:12349$$request_uri;
         }
 
         server {
@@ -173,6 +180,8 @@ services:
             ssl_protocols TLSv1.2 TLSv1.3;
             ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384;
             ssl_prefer_server_ciphers on;
+            ssl_session_cache shared:SSL:10m;
+            ssl_session_timeout 10m;
 
             location = /robots.txt  {
                 access_log off; log_not_found off;
@@ -220,8 +229,14 @@ services:
         ln -s /etc/nginx/sites-available/zammad.conf /etc/nginx/sites-enabled/zammad.conf
         
         # Test nginx configuration
+        echo "Testing nginx configuration..."
         nginx -t
         
+        # Show what nginx will listen on
+        echo "Nginx will listen on:"
+        grep -n "listen" /etc/nginx/sites-enabled/zammad.conf
+        
+        echo "Starting nginx..."
         # Start nginx in foreground
         exec nginx -g "daemon off;"
     expose:
