@@ -95,7 +95,7 @@ services:
 
   zammad-nginx:
     <<: *zammad-service
-    command: ["sh", "-c", "mkdir -p /etc/nginx/ssl && exec /docker-entrypoint.sh zammad-nginx"]
+    command: ["sh", "-c", "mkdir -p /etc/nginx/ssl /etc/nginx/sites-enabled && cp /tmp/zammad_ssl.conf /etc/nginx/sites-enabled/zammad.conf && exec /docker-entrypoint.sh zammad-nginx"]
     expose:
       - "443"
       - "80"
@@ -110,7 +110,7 @@ services:
     volumes:
       - ./certs/zammad.crt:/etc/nginx/ssl/zammad.crt:ro
       - ./certs/zammad.key:/etc/nginx/ssl/zammad.key:ro
-      - ./zammad_ssl.conf:/etc/nginx/sites-enabled/zammad.conf:ro
+      - ./zammad_ssl.conf:/tmp/zammad_ssl.conf:ro
       - zammad-storage:/opt/zammad/storage
     depends_on:
       - zammad-railsserver
