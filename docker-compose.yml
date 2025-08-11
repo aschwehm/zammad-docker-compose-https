@@ -99,13 +99,17 @@ services:
       - sh
       - -c
       - |
-        mkdir -p /etc/nginx/ssl /etc/nginx/sites-enabled
+        mkdir -p /etc/nginx/ssl /etc/nginx/sites-enabled /etc/nginx/sites-available
         
         # Generate self-signed certificate inside container
         openssl req -newkey rsa:4096 -nodes -x509 -days 1825 -subj "/CN=zammad.local" \
           -keyout /etc/nginx/ssl/zammad.key -out /etc/nginx/ssl/zammad.crt
         
-        cat > /etc/nginx/sites-enabled/zammad.conf << 'EOF'
+        # Remove any existing configurations that might conflict
+        rm -f /etc/nginx/sites-enabled/*
+        rm -f /etc/nginx/sites-available/*
+        
+        cat > /etc/nginx/sites-available/zammad.conf << 'EOF'
         server {
             listen 80;
             listen [::]:80;
@@ -173,6 +177,10 @@ services:
             }
         }
         EOF
+        
+        # Enable our configuration
+        ln -s /etc/nginx/sites-available/zammad.conf /etc/nginx/sites-enabled/zammad.conf
+        
         exec /docker-entrypoint.sh zammad-nginx
     expose:
       - "443"

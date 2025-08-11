@@ -20,36 +20,50 @@ This configuration runs Zammad with HTTPS enabled using self-signed certificates
 
 ## Files Added/Modified
 
-- `docker-compose.yml` - Updated zammad-nginx service configuration with embedded SSL config
-- `certs/zammad.crt` - Self-signed SSL certificate
-- `certs/zammad.key` - SSL private key
+- `docker-compose.yml` - Updated zammad-nginx service with embedded SSL config and certificate generation
 - `.env` - Environment variables
-- `zammad_ssl.conf` - Reference SSL configuration (not mounted, embedded in docker-compose)
+- `certs/` - Directory (certificates now generated inside container)
+- `zammad_ssl.conf` - Reference SSL configuration (not used, embedded in docker-compose)
 
 ## Technical Details
 
-The nginx SSL configuration is embedded directly in the docker-compose.yml using YAML's multi-line string format (`|`):
+**Certificate Generation**: Self-signed certificates are generated inside the Linux container to avoid Windows-to-Linux file mounting issues:
+
+```bash
+openssl req -newkey rsa:4096 -nodes -x509 -days 1825 -subj "/CN=zammad.local" \
+  -keyout /etc/nginx/ssl/zammad.key -out /etc/nginx/ssl/zammad.crt
+```
+
+**Configuration Management**: Complete nginx configuration management to avoid conflicts:
 
 ```yaml
 command: 
   - sh
   - -c
   - |
-    mkdir -p /etc/nginx/ssl /etc/nginx/sites-enabled
-    cat > /etc/nginx/sites-enabled/zammad.conf << 'EOF'
-    [nginx server blocks for HTTP redirect and HTTPS]
+    mkdir -p /etc/nginx/ssl /etc/nginx/sites-enabled /etc/nginx/sites-available
+    # Generate certificate inside container
+    openssl req -newkey rsa:4096 -nodes -x509 -days 1825 -subj "/CN=zammad.local" \
+      -keyout /etc/nginx/ssl/zammad.key -out /etc/nginx/ssl/zammad.crt
+    # Remove conflicting configurations
+    rm -f /etc/nginx/sites-enabled/*
+    rm -f /etc/nginx/sites-available/*
+    # Create our SSL configuration
+    cat > /etc/nginx/sites-available/zammad.conf << 'EOF'
+    [server blocks]
     EOF
+    # Enable our configuration properly
+    ln -s /etc/nginx/sites-available/zammad.conf /etc/nginx/sites-enabled/zammad.conf
     exec /docker-entrypoint.sh zammad-nginx
 ```
 
-**Key design decisions:**
-1. **No upstream definitions**: Removed duplicate upstream blocks as Zammad's nginx container already defines them
-2. **Server blocks only**: Only defines HTTP (redirect) and HTTPS server blocks
-3. **Uses existing upstreams**: References the pre-existing `zammad-railsserver` and `zammad-websocket` upstreams
-4. **YAML multi-line syntax**: Avoids shell parsing issues and maintains readability
-5. **Binary file mounting**: SSL certificates mount reliably from Windows to Linux
-
-This approach eliminates duplicate upstream errors while providing full SSL functionality.
+**Key advantages:**
+1. **No file mounting issues**: Everything created inside the Linux container
+2. **Clean slate approach**: Removes all existing nginx configurations that might conflict
+3. **Proper nginx site management**: Uses standard sites-available/sites-enabled pattern
+4. **Self-contained**: No external dependencies on Windows certificate files
+5. **Fresh certificates**: New certificate generated on each container start
+6. **No SSL conflicts**: Eliminates default SSL configurations that lack certificates
 
 ## Usage
 
